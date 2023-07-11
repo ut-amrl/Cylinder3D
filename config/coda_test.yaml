@@ -13,7 +13,7 @@ model_params:
 
   fea_dim: 9
   out_fea_dim: 256
-  num_class: 20
+  num_class: 25
   num_input_features: 16
   use_norm: True
   init_size: 32
@@ -23,11 +23,11 @@ model_params:
 ## Dataset options
 dataset_params:
   dataset_type: "cylinder_dataset"
-  pc_dataset_type: "SemKITTI_sk"
+  pc_dataset_type: "Coda_test"
   ignore_label: 0
   return_test: False
   fixed_volume_space: True
-  label_mapping: "./config/label_mapping/semantic-kitti.yaml"
+  label_mapping: "./config/label_mapping/coda_test.yaml"
   max_volume_space:
     - 50
     - 3.1415926
@@ -41,7 +41,7 @@ dataset_params:
 ###################
 ## Data_loader options
 train_data_loader:
-  data_path: "/robodata/public_datasets/semantickitti/sequences/"
+  data_path: "/robodata/CODa_test/"
   imageset: "train"
   return_ref: True
   batch_size: 2
@@ -49,8 +49,16 @@ train_data_loader:
   num_workers: 4
 
 val_data_loader:
-  data_path: "/robodata/public_datasets/semantickitti/sequences/"
+  data_path: "/robodata/CODa_test/"
   imageset: "val"
+  return_ref: True
+  batch_size: 1
+  shuffle: False
+  num_workers: 4
+
+test_data_loader:
+  data_path: "/robodata/CODa_test/"
+  imageset: "test"
   return_ref: True
   batch_size: 1
   shuffle: False
@@ -61,7 +69,7 @@ val_data_loader:
 ## Train params
 train_params:
   model_load_path: "./model_load_dir/model_load.pt"
-  model_save_path: "./model_save_dir/model_save.pt"
+  model_save_path: "./coda_pretrained_save/model_save.pt"
   checkpoint_every_n_steps: 4599
   max_num_epochs: 40
   eval_every_n_steps: 4599

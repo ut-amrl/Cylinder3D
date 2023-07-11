@@ -65,3 +65,75 @@ def build(dataset_config,
                                                      num_workers=val_dataloader_config["num_workers"])
 
     return train_dataset_loader, val_dataset_loader
+
+def build_test(dataset_config,
+               test_dataloader_config,
+               grid_size=[480, 360, 32]):
+    data_path = test_dataloader_config["data_path"]
+    test_imageset = test_dataloader_config["imageset"]
+    test_ref = test_dataloader_config["return_ref"]
+
+    label_mapping = dataset_config["label_mapping"]
+
+    SemKITTI = get_pc_model_class(dataset_config['pc_dataset_type'])
+
+    nusc=None
+    if "nusc" in dataset_config['pc_dataset_type']:
+        from nuscenes import NuScenes
+        nusc = NuScenes(version='v1.0-trainval', dataroot=data_path, verbose=True)
+
+    test_pt_dataset = SemKITTI(data_path, imageset=test_imageset,
+                              return_ref=test_ref, label_mapping=label_mapping, nusc=nusc)
+
+    test_dataset = get_model_class(dataset_config['dataset_type'])(
+        test_pt_dataset,
+        grid_size=grid_size,
+        fixed_volume_space=dataset_config['fixed_volume_space'],
+        max_volume_space=dataset_config['max_volume_space'],
+        min_volume_space=dataset_config['min_volume_space'],
+        ignore_label=dataset_config["ignore_label"],
+    )
+
+    test_dataset_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+                                                     batch_size=test_dataloader_config["batch_size"],
+                                                     collate_fn=collate_fn_BEV,
+                                                     shuffle=test_dataloader_config["shuffle"],
+                                                     num_workers=test_dataloader_config["num_workers"])
+
+    return test_dataset_loader
+
+def build_val(dataset_config,
+          val_dataloader_config,
+          grid_size=[480, 360, 32]):
+    data_path = val_dataloader_config["data_path"]
+    val_imageset = val_dataloader_config["imageset"]
+    val_ref = val_dataloader_config["return_ref"]
+
+    label_mapping = dataset_config["label_mapping"]
+
+    SemKITTI = get_pc_model_class(dataset_config['pc_dataset_type'])
+
+    nusc=None
+    if "nusc" in dataset_config['pc_dataset_type']:
+        from nuscenes import NuScenes
+        nusc = NuScenes(version='v1.0-trainval', dataroot=data_path, verbose=True)
+
+    val_pt_dataset = SemKITTI(data_path, imageset=val_imageset,
+                              return_ref=val_ref, label_mapping=label_mapping, nusc=nusc)
+
+    val_dataset = get_model_class(dataset_config['dataset_type'])(
+        val_pt_dataset,
+        grid_size=grid_size,
+        fixed_volume_space=dataset_config['fixed_volume_space'],
+        max_volume_space=dataset_config['max_volume_space'],
+        min_volume_space=dataset_config['min_volume_space'],
+        ignore_label=dataset_config["ignore_label"],
+    )
+
+    val_dataset_loader = torch.utils.data.DataLoader(dataset=val_dataset,
+                                                     batch_size=val_dataloader_config["batch_size"],
+                                                     collate_fn=collate_fn_BEV,
+                                                     shuffle=val_dataloader_config["shuffle"],
+                                                     num_workers=val_dataloader_config["num_workers"])
+
+    return val_dataset_loader

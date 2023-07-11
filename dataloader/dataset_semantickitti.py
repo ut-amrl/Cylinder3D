@@ -139,6 +139,14 @@ def polar2cat(input_xyz_polar):
     y = input_xyz_polar[0] * np.sin(input_xyz_polar[1])
     return np.stack((x, y, input_xyz_polar[2]), axis=0)
 
+def polar2cat_done(input_xyz_polar):
+    # print(input_xyz_polar.shape)
+    x = input_xyz_polar[:, 0] * np.cos(input_xyz_polar[:, 1])
+    y = input_xyz_polar[:, 0] * np.sin(input_xyz_polar[:, 1])
+    x = x.reshape((-1, 1))
+    y = y.reshape((-1, 1))
+    return np.concatenate((x, y, input_xyz_polar[:, 2].reshape((-1, 1))), axis=1)
+
 
 @register_dataset
 class cylinder_dataset(data.Dataset):

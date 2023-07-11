@@ -174,7 +174,7 @@ def main(args):
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
+    parser.add_argument('-y', '--config_path', default='config/coda_test.yaml')
     args = parser.parse_args()
 
     print(' '.join(sys.argv))

@@ -54,6 +54,17 @@ val_data_loader = Map(
     }
 )
 
+test_data_loader = Map(
+    {
+        "data_path": Str(),
+        "imageset": Str(),
+        "return_ref": Bool(),
+        "batch_size": Int(),
+        "shuffle": Bool(),
+        "num_workers": Int(),
+    }
+)
+
 train_params = Map(
     {
         "model_load_path": Str(),
@@ -74,6 +85,7 @@ schema_v4 = Map(
         "dataset_params": dataset_params,
         "train_data_loader": train_data_loader,
         "val_data_loader": val_data_loader,
+        "test_data_loader": test_data_loader,
         "train_params": train_params,
     }
 )

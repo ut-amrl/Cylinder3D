@@ -7,6 +7,10 @@ import numpy as np
 from torch.utils import data
 import yaml
 import pickle
+import re
+import json
+
+from os.path import join
 
 REGISTERED_PC_DATASET_CLASSES = {}
 
@@ -39,7 +43,6 @@ class SemKITTI_demo(data.Dataset):
         self.im_idx += absoluteFilePaths(data_path)
         self.label_idx = []
         if self.imageset == 'val':
-            print(demo_label_path)
             self.label_idx += absoluteFilePaths(demo_label_path)
 
     def __len__(self):
@@ -52,6 +55,126 @@ class SemKITTI_demo(data.Dataset):
             annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
         elif self.imageset == 'val':
             annotated_data = np.fromfile(self.label_idx[index], dtype=np.uint32).reshape((-1, 1))
+            annotated_data = annotated_data & 0xFFFF  # delete high 16 digits binary
+            annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
+
+        data_tuple = (raw_data[:, :3], annotated_data.astype(np.uint8))
+        if self.return_ref:
+            data_tuple += (raw_data[:, 3],)
+        return data_tuple
+
+@register_dataset
+class Coda_test(data.Dataset):
+    def __init__(self, data_path, imageset="train", return_ref=False, label_mapping="coda_test.yaml", nusc=None):
+        self.return_ref = return_ref
+        with open(label_mapping, 'r') as stream:
+            codayaml = yaml.safe_load(stream)
+        self.learning_map = codayaml['learning_map']
+        self.imageset = imageset
+
+        self.im_idx = []
+        print('/'.join([data_path, "3d_semantic/os1"]))
+        # self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_semantic/os1"]), True)
+        self.load_frame_list(data_path)
+
+        # train_set = 0.8
+        # train_size = int(len(self.im_idx) * train_set)
+        # if (self.imageset == "train"):
+        #     self.im_idx = [self.im_idx[val] for val in range(train_size)]
+        # elif(self.imageset == "val"):
+        #     self.im_idx = [self.im_idx[val] for val in range(train_size, len(self.im_idx))]
+        # elif(self.imageset == "test"):
+        #     self.im_idx = []
+        #     split = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        #     for i_folder in split:
+        #         print('/'.join([data_path, "3d_raw/os1", str(i_folder)]))
+        #         self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_raw/os1", str(i_folder)]), True)
+        # else:
+        #     raise Exception('Split must be train/val/test')
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.im_idx)
+    
+    def load_frame_list(self, data_path):
+        # Loop through all metadata files and build train, val, test list
+        metadata_dir = join(data_path, "metadata")
+        metadata_files = [file for file in os.listdir(metadata_dir) if file.endswith(".json")]
+        
+        imset_map = {
+            "train": "training",
+            "val": "validation",
+            "test": "testing"
+        }
+        imageset = imset_map[self.imageset]
+        for metadata_file in metadata_files:
+            meta_path = join(metadata_dir, metadata_file)
+
+            meta_dict = json.load(open(meta_path, 'r'))
+            self.im_idx.extend(meta_dict['SemanticSegmentation'][imageset])
+
+        self.im_idx = [join(data_path, subpath) for subpath in self.im_idx]
+
+        def helper_filesplitter(subpath):
+            fname = subpath.split('/')[-1]
+            fname_pre = fname.split('.')[0]
+            index = int(''.join(fname_pre.split('_')[-2:-1]))
+            return index
+
+        if imageset=="testing":
+            # Sort test split for better image demos
+            self.im_idx = sorted(self.im_idx, key=helper_filesplitter)
+
+    def __getitem__(self, index):
+        raw_data = np.fromfile(self.im_idx[index].replace('semantic', 'raw'), dtype=np.float32).reshape((-1, 4))
+        if self.imageset == 'test':
+            annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
+        else:
+            with open(self.im_idx[index].replace('raw', 'semantic'), "rb") as annotated_file:
+                annotated_data = np.array(list(annotated_file.read())).reshape((-1, 1))
+            annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
+
+        data_tuple = (raw_data[:, :3], annotated_data.astype(np.uint8))
+        if self.return_ref:
+            data_tuple += (raw_data[:, 3],)
+        return data_tuple
+
+@register_dataset
+class Coda_final(data.Dataset):
+    def __init__(self, data_path, imageset='train',
+                 return_ref=False, label_mapping="coda.yaml", nusc=None):
+        self.return_ref = return_ref
+        with open(label_mapping, 'r') as stream:
+            codayaml = yaml.safe_load(stream)
+        self.learning_map = codayaml['learning_map']
+        self.imageset = imageset
+        if imageset == 'train':
+            split = codayaml['split']['train']
+        elif imageset == 'val':
+            split = codayaml['split']['valid']
+        elif imageset == 'test':
+            split = codayaml['split']['test']
+        else:
+            raise Exception('Split must be train/val/test')
+
+        self.im_idx = []
+        for i_folder in split:
+            print('/'.join([data_path, "3d_raw/os1", str(i_folder)]))
+            self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_raw/os1", str(i_folder)]), True)
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.im_idx)
+
+    def __getitem__(self, index):
+        index += 1000
+        print(self.im_idx[index])
+        raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
+        if self.imageset == 'test':
+            annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
+        else:
+            annotated_data = np.fromfile(self.im_idx[index].replace('raw', 'semantic'),
+                                         dtype=np.uint32).reshape((-1, 1))
             annotated_data = annotated_data & 0xFFFF  # delete high 16 digits binary
             annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
 
@@ -139,13 +262,15 @@ class SemKITTI_nusc(data.Dataset):
             data_tuple += (points[:, 3],)
         return data_tuple
 
-
-def absoluteFilePaths(directory):
+def absoluteFilePaths(directory, coda=False):
+    print(directory)
     for dirpath, _, filenames in os.walk(directory):
-        filenames.sort()
+        if not coda:
+            filenames.sort()
+        else:
+            filenames.sort(key=lambda x: int(re.findall(r'\d+', x)[-1]))
         for f in filenames:
             yield os.path.abspath(os.path.join(dirpath, f))
-
 
 def SemKITTI2train(label):
     if isinstance(label, list):

@@ -17,7 +17,7 @@ from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
 from config.config import load_config_data
 
-from utils.load_save_util import load_checkpoint
+from utils.load_save_util import load_remapped_checkpoint
 
 import warnings
 
@@ -31,7 +31,7 @@ def main(args):
 
     configs = load_config_data(config_path)
 
-    dataset_config = configs['dataset_params']
+    dataset_config = configs['dataset_params']              # Use coda_kitti_test_subset.yaml
     train_dataloader_config = configs['train_data_loader']
     val_dataloader_config = configs['val_data_loader']
 
@@ -53,9 +53,11 @@ def main(args):
     unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
     unique_label_str = [SemKITTI_label_name[x] for x in unique_label + 1]
 
+    print(unique_label_str)
+
     my_model = model_builder.build(model_config)
     if os.path.exists(model_load_path):
-        my_model = load_checkpoint(model_load_path, my_model)
+        my_model = load_remapped_checkpoint(model_load_path, my_model)
 
     my_model.to(pytorch_device)
 
@@ -86,8 +88,7 @@ def main(args):
         # time.sleep(10)
         # lr_scheduler.step(epoch)
         for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
-            if global_iter % check_iter == 0 and epoch >= 1:
-                
+            if global_iter % check_iter == 0:
                 # Evaluation set
                 my_model.eval()
                 hist_list = []
@@ -102,6 +103,11 @@ def main(args):
                         val_label_tensor = val_vox_label.type(torch.LongTensor).to(pytorch_device)
 
                         predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
+
+                        # remap outputs
+                        # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
+                        # predict_labels.apply_(output_remap.get)
+
                         # aux_loss = loss_fun(aux_outputs, point_label_tensor)
                         loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
                                               ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
@@ -141,6 +147,11 @@ def main(args):
             # forward + backward + optimize
             with torch.cuda.amp.autocast(enabled=amp):
                 outputs = my_model(train_pt_fea_ten, train_vox_ten, train_batch_size)
+
+                # remap outputs
+                # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
+                # outputs.apply_(output_remap.get)
+
                 loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + loss_func(
                     outputs, point_label_tensor)
             amp_scaler.scale(loss).backward()
@@ -174,7 +185,7 @@ def main(args):
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
+    parser.add_argument('-y', '--config_path', default='config/coda_kitti_test_subset.yaml')
     args = parser.parse_args()
 
     print(' '.join(sys.argv))
