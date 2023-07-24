@@ -1,3 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea
 .DS_Store
+
+# ignore the checkpoint files
+coda_40epoch_25class/
+semantickitti_40epoch_20class/
+semantickitti_coda_40epoch_25class/

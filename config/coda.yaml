@@ -13,7 +13,7 @@ model_params:
 
   fea_dim: 9
   out_fea_dim: 256
-  num_class: 20
+  num_class: 25 
   num_input_features: 16
   use_norm: True
   init_size: 32
@@ -23,7 +23,7 @@ model_params:
 ## Dataset options
 dataset_params:
   dataset_type: "cylinder_dataset"
-  pc_dataset_type: "Coda_final"
+  pc_dataset_type: "Coda"
   ignore_label: 0
   return_test: False
   fixed_volume_space: True
@@ -41,38 +41,38 @@ dataset_params:
 ###################
 ## Data_loader options
 train_data_loader:
-  data_path: "/robodata/arthurz/Datasets/CODa/"
+  data_path: "/robodata/arthurz/Datasets/CODa_dev"
   imageset: "train"
   return_ref: True
   batch_size: 2
   shuffle: True
-  num_workers: 4
+  num_workers: 1
 
 val_data_loader:
-  data_path: "/robodata/arthurz/Datasets/CODa/"
+  data_path: "/robodata/arthurz/Datasets/CODa_dev"
   imageset: "val"
   return_ref: True
   batch_size: 1
   shuffle: False
-  num_workers: 4
+  num_workers: 1
 
 test_data_loader:
-  data_path: "/robodata/arthurz/Datasets/CODa/"
+  data_path: "/robodata/arthurz/Datasets/CODa_dev"
   imageset: "test"
   return_ref: True
-  batch_size: 1
+  batch_size: 2
   shuffle: False
-  num_workers: 4
+  num_workers: 1
 
 
 ###################
 ## Train params
 train_params:
-  model_load_path: "./model_load_dir/model_load.pt"
-  model_save_path: "./model_save_dir/model_save.pt"
-  checkpoint_every_n_steps: 4599
+  model_load_path: "./coda_40epoch_25class/model_load.pt"
+  model_save_path: "./coda_40epoch_25class/model_save.pt"
+  checkpoint_every_n_steps: 80
   max_num_epochs: 40
-  eval_every_n_steps: 4599
+  eval_every_n_steps: 1000
   learning_rate: 0.001
   weight_decay: 0.001
   mixed_fp16: True

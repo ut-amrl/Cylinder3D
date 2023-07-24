@@ -64,7 +64,7 @@ class SemKITTI_demo(data.Dataset):
         return data_tuple
 
 @register_dataset
-class Coda_test(data.Dataset):
+class Coda(data.Dataset):
     def __init__(self, data_path, imageset="train", return_ref=False, label_mapping="coda_test.yaml", nusc=None):
         self.return_ref = return_ref
         with open(label_mapping, 'r') as stream:
@@ -73,24 +73,7 @@ class Coda_test(data.Dataset):
         self.imageset = imageset
 
         self.im_idx = []
-        print('/'.join([data_path, "3d_semantic/os1"]))
-        # self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_semantic/os1"]), True)
         self.load_frame_list(data_path)
-
-        # train_set = 0.8
-        # train_size = int(len(self.im_idx) * train_set)
-        # if (self.imageset == "train"):
-        #     self.im_idx = [self.im_idx[val] for val in range(train_size)]
-        # elif(self.imageset == "val"):
-        #     self.im_idx = [self.im_idx[val] for val in range(train_size, len(self.im_idx))]
-        # elif(self.imageset == "test"):
-        #     self.im_idx = []
-        #     split = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-        #     for i_folder in split:
-        #         print('/'.join([data_path, "3d_raw/os1", str(i_folder)]))
-        #         self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_raw/os1", str(i_folder)]), True)
-        # else:
-        #     raise Exception('Split must be train/val/test')
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -140,7 +123,7 @@ class Coda_test(data.Dataset):
         return data_tuple
 
 @register_dataset
-class Coda_final(data.Dataset):
+class Coda_demo(data.Dataset):
     def __init__(self, data_path, imageset='train',
                  return_ref=False, label_mapping="coda.yaml", nusc=None):
         self.return_ref = return_ref

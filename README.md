@@ -77,8 +77,12 @@ Tested on Ubuntu 20.04 LTS. Recommend pip install over conda install.
 ```
 
 ## Training
-1. modify the config/semantickitti.yaml with your custom settings. We provide a sample yaml for SemanticKITTI
-2. train the network by running "sh train.sh"
+1. modify the config/semantickitti.yaml, config/coda.yaml, and the coda-semantickitti-finetune.yaml with your custom settings. We provide a sample yaml for all of these.
+2. train the network by running the following command depending on your goal:
+
+* **train SemanticKITTI from scratch:** `bash train.sh`
+* **train CODA from scratch:** `bash train_coda.sh`
+* **train CODA on pretrained SemanticKITTI model:** `bash train_coda_pretrain_semkitti.sh`
 
 
 If you find this work useful in your research, please consider citing the original authors [papers](https://arxiv.org/pdf/2011.10033):

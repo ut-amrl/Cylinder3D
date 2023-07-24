@@ -23,11 +23,11 @@ model_params:
 ## Dataset options
 dataset_params:
   dataset_type: "cylinder_dataset"
-  pc_dataset_type: "Coda_test"
+  pc_dataset_type: "Coda"
   ignore_label: 0
   return_test: False
   fixed_volume_space: True
-  label_mapping: "./config/label_mapping/coda_kitti_test_subset.yaml"
+  label_mapping: "./config/label_mapping/coda.yaml"
   max_volume_space:
     - 50
     - 3.1415926
@@ -68,9 +68,8 @@ test_data_loader:
 ###################
 ## Train params
 train_params:
-  #model_load_path: "./model_kitti_load_dir/model_save.pt"
-  model_load_path: "./coda_kitti_dev_save/model_save.pt"
-  model_save_path: "./coda_kitti_dev_save/model_save.pt"
+  model_load_path: "./semantickitti_40epoch_20class/model_load.pt"
+  model_save_path: "./semantickitti_coda_40epoch_25class/model_save.pt"
   checkpoint_every_n_steps: 80
   max_num_epochs: 40
   eval_every_n_steps: 1000
