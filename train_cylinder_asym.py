@@ -17,9 +17,16 @@ from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
 from config.config import load_config_data
 
-from utils.load_save_util import load_checkpoint
+from utils.load_save_util import load_remapped_checkpoint
 
 import warnings
+
+import math
+
+USE_WANDB = False
+
+if USE_WANDB:
+    import wandb
 
 warnings.filterwarnings("ignore")
 
@@ -31,7 +38,7 @@ def main(args):
 
     configs = load_config_data(config_path)
 
-    dataset_config = configs['dataset_params']
+    dataset_config = configs['dataset_params']              # Use coda_kitti_test_subset.yaml
     train_dataloader_config = configs['train_data_loader']
     val_dataloader_config = configs['val_data_loader']
 
@@ -49,13 +56,16 @@ def main(args):
     model_save_path = train_hypers['model_save_path']
     wd = train_hypers['weight_decay']      # weight decay
     amp = train_hypers['mixed_fp16']
+    freeze_backbone = train_hypers['freeze_backbone']
     SemKITTI_label_name = get_SemKITTI_label_name(dataset_config["label_mapping"])
     unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
     unique_label_str = [SemKITTI_label_name[x] for x in unique_label + 1]
 
-    my_model = model_builder.build(model_config)
+    print(unique_label_str)
+
+    my_model = model_builder.build(model_config, freeze_backbone=freeze_backbone)
     if os.path.exists(model_load_path):
-        my_model = load_checkpoint(model_load_path, my_model)
+        my_model = load_remapped_checkpoint(model_load_path, my_model)
 
     my_model.to(pytorch_device)
 
@@ -73,9 +83,22 @@ def main(args):
                                                                   val_dataloader_config,
                                                                   grid_size=grid_size)
 
+    project_name = f'{config_path[7:-5]}'
+    print("Project Name: " + project_name)
+    if USE_WANDB:
+        wandb.init(
+            config = {
+                "learning_rate": train_hypers["learning_rate"],
+                "epochs": train_hypers['max_num_epochs'],
+                "name": project_name
+            },
+            name = project_name
+        )
+
     # training
     epoch = 0
     best_val_miou = 0
+    best_save_file = None
     my_model.train()
     global_iter = 0
     check_iter = train_hypers['eval_every_n_steps']
@@ -86,8 +109,7 @@ def main(args):
         # time.sleep(10)
         # lr_scheduler.step(epoch)
         for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
-            if global_iter % check_iter == 0 and epoch >= 1:
-                
+            if global_iter % check_iter == 0 and False:
                 # Evaluation set
                 my_model.eval()
                 hist_list = []
@@ -102,6 +124,11 @@ def main(args):
                         val_label_tensor = val_vox_label.type(torch.LongTensor).to(pytorch_device)
 
                         predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
+                        
+                        # remap outputs
+                        # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
+                        # predict_labels.apply_(output_remap.get)
+
                         # aux_loss = loss_fun(aux_outputs, point_label_tensor)
                         loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
                                               ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
@@ -122,15 +149,24 @@ def main(args):
                 val_miou = np.nanmean(iou) * 100
                 del val_vox_label, val_grid, val_pt_fea, val_grid_ten
 
-                # save model if performance is improved
+                # save model
+                model_name = f"model_{int(global_iter/check_iter)}_{val_miou}.pt"
+                overall_save_path = os.path.join(model_save_path, model_name)
+                torch.save(my_model.state_dict(), overall_save_path)
                 if best_val_miou < val_miou:
                     best_val_miou = val_miou
-                    torch.save(my_model.state_dict(), model_save_path)
+                    best_save_file = overall_save_path
 
                 print('Current val miou is %.3f while the best val miou is %.3f' %
                       (val_miou, best_val_miou))
                 print('Current val loss is %.3f' %
                       (np.mean(val_loss_list)))
+                
+                curr_state = {"val_loss": np.mean(val_loss_list), "val_miou": val_miou}
+                for class_name, class_iou in zip(unique_label_str, iou):
+                    curr_state[f'val_{class_name}_iou'] = class_iou
+                if USE_WANDB:
+                    wandb.log(curr_state)
 
             # Training set
             train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in train_pt_fea]
@@ -141,12 +177,20 @@ def main(args):
             # forward + backward + optimize
             with torch.cuda.amp.autocast(enabled=amp):
                 outputs = my_model(train_pt_fea_ten, train_vox_ten, train_batch_size)
-                loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=0) + loss_func(
+                # import pdb; pdb.set_trace()
+                # remap outputs
+                # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
+                # outputs.apply_(output_remap.get)
+
+                loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=None) + loss_func(
                     outputs, point_label_tensor)
             amp_scaler.scale(loss).backward()
             amp_scaler.step(optimizer)
             amp_scaler.update()
-            # optimizer.step()
+            optimizer.step()
+
+            if math.isnan(loss.item()):
+                import pdb; pdb.set_trace()
 
             loss_list.append(loss.item())
 
@@ -164,17 +208,21 @@ def main(args):
                 if len(loss_list) > 0:
                     print('epoch %d iter %5d, loss: %.3f\n' %
                           (epoch, i_iter, np.mean(loss_list)))
+                    if USE_WANDB:
+                        wandb.log({"epoch": epoch, "loss": np.mean(loss_list)})
                 else:
                     print('loss error')
         scheduler.step()    # Updates cosine annealing
         pbar.close()
         epoch += 1
 
+    print(f"The best saved model is {best_save_file}")
+
 
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='config/semantickitti.yaml')
+    parser.add_argument('-y', '--config_path', default='config/coda.yaml')
     args = parser.parse_args()
 
     print(' '.join(sys.argv))

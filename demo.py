@@ -9,29 +9,98 @@ from tqdm import tqdm
 
 from utils.metric_util import per_class_iu, fast_hist_crop
 from dataloader.pc_dataset import get_SemKITTI_label_name
-from builder import data_builder, model_builder, loss_builder
+from builder import model_builder, loss_builder
 from config.config import load_config_data
 from dataloader.dataset_semantickitti import polar2cat_done
 
 from utils.load_save_util import load_checkpoint, load_checkpoint_1b1
+
+class Coda_demo(data.Dataset):
+    def __init__(self, data_path, imageset='train',
+                 return_ref=False, label_mapping="coda.yaml", nusc=None):
+        self.return_ref = return_ref
+        with open(label_mapping, 'r') as stream:
+            codayaml = yaml.safe_load(stream)
+        self.learning_map = codayaml['learning_map']
+        self.imageset = imageset
+        split = codayaml['split']['valid']
+        else:
+            raise Exception('Split must be train/val/test')
+
+        self.im_idx = []
+        for i_folder in split:
+            print('/'.join([data_path, "3d_raw/os1", str(i_folder)]))
+            self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_raw/os1", str(i_folder)]), True)
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.im_idx)
+
+    def __getitem__(self, index):
+        index += 1000
+        print(self.im_idx[index])
+        raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
+        if self.imageset == 'test':
+            annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
+        else:
+            annotated_data = np.fromfile(self.im_idx[index].replace('raw', 'semantic'),
+                                         dtype=np.uint32).reshape((-1, 1))
+            annotated_data = annotated_data & 0xFFFF  # delete high 16 digits binary
+            annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
+
+        data_tuple = (raw_data[:, :3], annotated_data.astype(np.uint8))
+        if self.return_ref:
+            data_tuple += (raw_data[:, 3],)
+        return data_tuple
+
+def build(dataset_config,
+          val_dataloader_config,
+          grid_size=[480, 360, 32]):
+    data_path = train_dataloader_config["data_path"]
+    val_imageset = val_dataloader_config["imageset"]
+    val_ref = val_dataloader_config["return_ref"]
+
+    label_mapping = dataset_config["label_mapping"]
+
+    SemKITTI = get_pc_model_class(dataset_config['pc_dataset_type'])
+
+    nusc=None
+    if "nusc" in dataset_config['pc_dataset_type']:
+        from nuscenes import NuScenes
+        nusc = NuScenes(version='v1.0-trainval', dataroot=data_path, verbose=True)
+
+    val_pt_dataset = SemKITTI(data_path, imageset=val_imageset,
+                              return_ref=val_ref, label_mapping=label_mapping, nusc=nusc)
+
+    val_dataset = Coda_demo(
+        val_pt_dataset,
+        grid_size=grid_size,
+        fixed_volume_space=dataset_config['fixed_volume_space'],
+        max_volume_space=dataset_config['max_volume_space'],
+        min_volume_space=dataset_config['min_volume_space'],
+        ignore_label=dataset_config["ignore_label"],
+    )
+
+    val_dataset_loader = torch.utils.data.DataLoader(dataset=val_dataset,
+                                                     batch_size=val_dataloader_config["batch_size"],
+                                                     collate_fn=collate_fn_BEV,
+                                                     shuffle=val_dataloader_config["shuffle"],
+                                                     num_workers=val_dataloader_config["num_workers"])
+
+    return val_dataset_loader
+
 
 def main(args):
     pytorch_device = torch.device('cuda:0')
 
     config_path = args.config_path
 
-    print("It Get Here")
-
     configs = load_config_data(config_path)
 
-    print("It Doesn't Get Past")
-
     dataset_config = configs['dataset_params']
-    train_dataloader_config = configs['train_data_loader']
     val_dataloader_config = configs['val_data_loader']
 
     val_batch_size = val_dataloader_config['batch_size']
-    train_batch_size = train_dataloader_config['batch_size']
 
     model_config = configs['model_params']
 
@@ -39,14 +108,11 @@ def main(args):
     num_class = model_config['num_class']
     ignore_label = dataset_config['ignore_label']
 
-    model_load_path = "./model_save_dir/model_save.pt"
+    model_load_path = configs['train_params']['model_load_path']
 
     SemKITTI_label_name = get_SemKITTI_label_name(dataset_config["label_mapping"])
     unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
     unique_label_str = [SemKITTI_label_name[x] for x in unique_label + 1]
-
-    print("Unique Label:", unique_label)
-    print("Unique Label String:", unique_label_str)
 
     np.save("demo_results/label_vals", np.array(unique_label_str))
 
@@ -59,10 +125,9 @@ def main(args):
     loss_func, lovasz_softmax = loss_builder.build(wce=True, lovasz=True,
                                                    num_class=num_class, ignore_label=ignore_label)
 
-    train_dataset_loader, val_dataset_loader = data_builder.build(dataset_config,
-                                                                  train_dataloader_config,
-                                                                  val_dataloader_config,
-                                                                  grid_size=grid_size)
+    val_dataset_loader = build(dataset_config,
+                               val_dataloader_config,
+                               grid_size=grid_size)
 
     my_model.eval()
     hist_list = []

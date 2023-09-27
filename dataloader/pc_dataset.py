@@ -123,50 +123,6 @@ class Coda(data.Dataset):
         return data_tuple
 
 @register_dataset
-class Coda_demo(data.Dataset):
-    def __init__(self, data_path, imageset='train',
-                 return_ref=False, label_mapping="coda.yaml", nusc=None):
-        self.return_ref = return_ref
-        with open(label_mapping, 'r') as stream:
-            codayaml = yaml.safe_load(stream)
-        self.learning_map = codayaml['learning_map']
-        self.imageset = imageset
-        if imageset == 'train':
-            split = codayaml['split']['train']
-        elif imageset == 'val':
-            split = codayaml['split']['valid']
-        elif imageset == 'test':
-            split = codayaml['split']['test']
-        else:
-            raise Exception('Split must be train/val/test')
-
-        self.im_idx = []
-        for i_folder in split:
-            print('/'.join([data_path, "3d_raw/os1", str(i_folder)]))
-            self.im_idx += absoluteFilePaths('/'.join([data_path, "3d_raw/os1", str(i_folder)]), True)
-
-    def __len__(self):
-        'Denotes the total number of samples'
-        return len(self.im_idx)
-
-    def __getitem__(self, index):
-        index += 1000
-        print(self.im_idx[index])
-        raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
-        if self.imageset == 'test':
-            annotated_data = np.expand_dims(np.zeros_like(raw_data[:, 0], dtype=int), axis=1)
-        else:
-            annotated_data = np.fromfile(self.im_idx[index].replace('raw', 'semantic'),
-                                         dtype=np.uint32).reshape((-1, 1))
-            annotated_data = annotated_data & 0xFFFF  # delete high 16 digits binary
-            annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
-
-        data_tuple = (raw_data[:, :3], annotated_data.astype(np.uint8))
-        if self.return_ref:
-            data_tuple += (raw_data[:, 3],)
-        return data_tuple
-
-@register_dataset
 class SemKITTI_sk(data.Dataset):
     def __init__(self, data_path, imageset='train',
                  return_ref=False, label_mapping="semantic-kitti.yaml", nusc=None):

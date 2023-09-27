@@ -68,12 +68,12 @@ test_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "./coda_40epoch_25class/model_epoch_1.py"
-  model_save_path: "./coda_40epoch_25class"
+  model_load_path: "./semantickitti_coda_5epoch_25class_head/model_load.pt"
+  model_save_path: "./semantickitti_coda_40epoch_25class_lr_0_1"
   checkpoint_every_n_steps: 80
   max_num_epochs: 40
   eval_every_n_steps: 1000
-  learning_rate: 0.001
+  learning_rate: 0.1
   weight_decay: 0.001
   mixed_fp16: True
   freeze_backbone: False

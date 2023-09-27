@@ -7,7 +7,7 @@ from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
 from network.cylinder_fea_generator import cylinder_fea
 
 
-def build(model_config):
+def build(model_config, freeze_backbone=False):
     output_shape = model_config['output_shape']
     num_class = model_config['num_class']
     num_input_features = model_config['num_input_features']
@@ -33,5 +33,8 @@ def build(model_config):
         segmentator_spconv=cylinder_3d_spconv_seg,
         sparse_shape=output_shape
     )
+
+    if (freeze_backbone):
+        cy_fea_net.freeze_weights()
 
     return model

@@ -74,7 +74,8 @@ train_params = Map(
         "eval_every_n_steps": Int(),
         "learning_rate": Float(),
         "weight_decay": Float(),
-        "mixed_fp16": Bool()
+        "mixed_fp16": Bool(),
+        "freeze_backbone": Bool()
      }
 )
 

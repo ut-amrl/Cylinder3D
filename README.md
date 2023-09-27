@@ -37,6 +37,8 @@ Weights are trained according to the original Cylinder3D, and not according to k
 - CosineDecay Schedule
 - Batch Size 24 (Better result possible with lower batch size, batch size chosen for economical reasons.)
 
+
+
 ### Requirements
 Also tested with CUDA 11.3, just "downgrade" pytorch, spconv and torch-scatter.
 
@@ -82,7 +84,11 @@ Tested on Ubuntu 20.04 LTS. Recommend pip install over conda install.
 
 * **train SemanticKITTI from scratch:** `bash train.sh`
 * **train CODA from scratch:** `bash train_coda.sh`
-* **train CODA on pretrained SemanticKITTI model:** `bash train_coda_pretrain_semkitti.sh`
+* **train CODA on pretrained SemanticKITTI model:**
+  1. **finetune CODA model by freezing all layers except the head:** `bash train_coda_pretrain_semkitti_finetune.sh`
+  2. **finetune CODA model on all layers:** `bash train_coda_pretrain_semkitti.sh`
+    
+    *Note: Change the LEARNING_RATE parameter in the `train_coda_pretrain_semkitti.sh` file to train on different learning rate parameters.*
 
 
 If you find this work useful in your research, please consider citing the original authors [papers](https://arxiv.org/pdf/2011.10033):

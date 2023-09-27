@@ -52,6 +52,14 @@ class cylinder_fea(nn.Module):
         else:
             self.pt_fea_dim = self.pool_dim
 
+    def freeze_weights(self):
+        for param in self.PPmodel.parameters():
+            param.requires_grad = False
+
+        if self.fea_compre is not None:
+            for param in self.fea_compression.parameters():
+                param.requires_grad = False
+
     def forward(self, pt_fea, xy_ind):
         cur_dev = pt_fea[0].get_device()
 
