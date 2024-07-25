@@ -61,7 +61,7 @@ class cylinder_fea(nn.Module):
                 param.requires_grad = False
 
     def forward(self, pt_fea, xy_ind):
-        cur_dev = pt_fea[0].get_device()
+        cur_dev = pt_fea[0].device
 
         # concate everything
         cat_pt_ind = []

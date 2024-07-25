@@ -109,7 +109,7 @@ def main(args):
         # time.sleep(10)
         # lr_scheduler.step(epoch)
         for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
-            if global_iter % check_iter == 0 and False:
+            if global_iter % check_iter == 0 and global_iter != 0:
                 # Evaluation set
                 my_model.eval()
                 hist_list = []
@@ -125,13 +125,10 @@ def main(args):
 
                         predict_labels = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
                         
-                        # remap outputs
-                        # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
-                        # predict_labels.apply_(output_remap.get)
-
                         # aux_loss = loss_fun(aux_outputs, point_label_tensor)
                         loss = lovasz_softmax(torch.nn.functional.softmax(predict_labels).detach(), val_label_tensor,
                                               ignore=0) + loss_func(predict_labels.detach(), val_label_tensor)
+
                         predict_labels = torch.argmax(predict_labels, dim=1)
                         predict_labels = predict_labels.cpu().detach().numpy()
                         for count, i_val_grid in enumerate(val_grid):
@@ -182,15 +179,17 @@ def main(args):
                 # output_remap = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 11, 10: 0, 11: 12, 12: 4, 13: 0, 14: 0, 15: 13, 16: 0, 17: 10, 18: 0, 19: 0, 20: 1, 21: 2, 22: 3, 23: 5, 24: 6, 25: 7, 26: 8, 27: 9, 28: 14}
                 # outputs.apply_(output_remap.get)
 
-                loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=None) + loss_func(
+                # outputs.shape = (2, 25, 480, W. H)
+
+                loss = lovasz_softmax(torch.nn.functional.softmax(outputs), point_label_tensor, ignore=ignore_label) + loss_func(
                     outputs, point_label_tensor)
+                
+            if math.isnan(loss):
+                import pdb; pdb.set_trace()
             amp_scaler.scale(loss).backward()
             amp_scaler.step(optimizer)
             amp_scaler.update()
-            optimizer.step()
-
-            if math.isnan(loss.item()):
-                import pdb; pdb.set_trace()
+            # optimizer.step()
 
             loss_list.append(loss.item())
 

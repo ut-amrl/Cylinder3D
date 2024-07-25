@@ -56,6 +56,13 @@ val_data_loader:
   shuffle: False
   num_workers: 4
 
+test_data_loader:
+  data_path: "/robodata/public_datasets/semantickitti/sequences/"
+  imageset: "test"
+  return_ref: True
+  batch_size: 2
+  shuffle: False
+  num_workers: 1
 
 ###################
 ## Train params

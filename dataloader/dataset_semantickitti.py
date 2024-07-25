@@ -271,6 +271,8 @@ class cylinder_dataset(data.Dataset):
         return_xyz = xyz_pol - voxel_centers
         return_xyz = np.concatenate((return_xyz, xyz_pol, xyz[:, :2]), axis=1)
 
+        # print(len(data), return_xyz.shape)
+
         if len(data) == 2:
             return_fea = return_xyz
         elif len(data) == 3:
@@ -280,6 +282,7 @@ class cylinder_dataset(data.Dataset):
             data_tuple += (grid_ind, labels, return_fea, index)
         else:
             data_tuple += (grid_ind, labels, return_fea)
+        
         return data_tuple
 
 

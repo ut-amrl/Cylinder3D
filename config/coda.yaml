@@ -68,7 +68,7 @@ test_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "./coda_40epoch_25class/model_epoch_1.py"
+  model_load_path: "./coda_40epoch_25class/model_71_61.78303429304134.pt"
   model_save_path: "./coda_40epoch_25class"
   checkpoint_every_n_steps: 80
   max_num_epochs: 40

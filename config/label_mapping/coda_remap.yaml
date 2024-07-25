@@ -1,0 +1,174 @@
+# This file is covered by the LICENSE file in the root of this project.
+
+labels: 
+  0 : "unlabeled"
+  1 : "concrete"
+  2 : "grass"
+  3 : "rocks"
+  4 : "speedway bricks"
+  5 : "red bricks"
+  6 : "pebble pavement"
+  7 : "light marble tiling"
+  8 : "dark marble tiling"
+  9 : "dirt paths"
+  10: "road pavement"
+  11: "short vegetation"
+  12: "percelain tile"
+  13: "metal grates"
+  14: "blond marble tiling"
+  15: "wood panel"
+  16: "patterned tile"
+  17: "carpet"
+  18: "crosswalk"
+  19: "dome mat"
+  20: "stairs"
+  21: "door mat"
+  22: "threshold"
+  23: "metal floor"
+  24: "unknown"
+
+remap_labels:
+  0: "unlabeled"
+  1: "concrete"
+  2: "grass"
+  3: "rocks"
+  4: "bricks"
+  5: "pebble pavement"
+  6: "tiling"
+  7: "dirt paths"
+  8: "road pavement"
+  9: "short vegetation"
+  10: "metal"
+  11: "wood panel"
+  12: "carpet"
+  13: "crosswalk"
+  14: "threshold"
+  15: "stairs"
+  16: "other"
+
+color_map: # bgr
+  0:  [0, 0, 0]               # 0 Unlabeled
+  1:  [47, 171, 97]           # 1 Concrete
+  2:  [200, 77, 159]          # 2 Grass
+  3:  [126, 49, 141]          # 3 Rocks
+  4:  [55, 128, 235]          # 4 Speedway Bricks, Red Bricks
+  5:  [141, 3, 98]            # 5 Pebble Pavement
+  6:  [203, 110, 74]          # 6 Light Marble Tiling, Dark Marble Tiling, Porcelain Tile, Blond Marble Tiling, Patterned Tile
+  7:  [78, 57, 127]           # 7 Dirt Paths
+  8:  [60, 143, 142]          # 8 Road Pavement
+  9:  [187, 187, 17]          # 9 Short Vegetation
+  10: [89, 183, 27]           # 10 Metal Grates, metal floor
+  11: [150, 81, 244]          # 11 Wood Panel
+  12: [60, 100, 116]          # 12 Carpet
+  13: [156, 207, 153]         # 13 Crosswalk
+  14: [135, 138, 159]         # 14 Dome Mat, Door Mat, Threshold
+  15: [44, 217, 131]          # 15 Stairs
+  16: [115, 226, 101]         # 16 Threshold, Metal Floor, Unknown
+
+# classes that are indistinguishable from single scan or inconsistent in
+# ground truth are mapped to their closest equivalent
+learning_map:
+  0 :     0   # "unlabeled"    
+  1 :     1   # concrete    
+  2 :     2   # grass  
+  3 :     3   # rocks  
+  4 :     4   # speedway bricks -> bricks     
+  5 :     4   # red bricks      -> bricks
+  6 :     5   # pebble pavement    
+  7 :     6   # light marbiling tiling -> tiling    
+  8 :     6   # dark marble tiling -> tiling    
+  9 :     7   # dirt paths   
+  10:     8   # road pavement    
+  11:     9   # short vegetation 
+  12:     6   # porcelain tile -> tiling  
+  13:     10  # metal grates -> metal   
+  14:     6   # blond marble tiling -> tiling    
+  15:     11  # wood panels    
+  16:     6   # pattened tile -> tiling    
+  17:     12  # carpet    
+  18:     13  # crosswalk    
+  19:     14  # dome mat -> threshold    
+  20:     15  # stairs    
+  21:     14  # door mat -> threshold    
+  22:     14  # threshold -> threshold    
+  23:     10  # metal floor -> metal    
+  24:     16  # unknown -> other  
+
+split: # sequence numbers
+  train:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 9
+    - 10
+  valid:
+    - 8
+  test:
+    - 1
+    - 16
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    - 22
+
+
+# learning_map_inv: # inverse of previous map
+#   0 : 0     # "unlabeled", and others ignored
+#   1 : 1     # "car"
+#   2 : 2     # "bicycle"
+#   3 : 3     # "motorcycle"
+#   4 : 4     # "truck"
+#   5 : 5     # "other-vehicle"
+#   6 : 6     # "person"
+#   7 : 7     # "bicyclist"
+#   8 : 8     # "motorcyclist"
+#   9 : 9     # "road"
+#   10: 10    # "parking"
+#   11: 11    # "sidewalk"
+#   12: 12    # "other-ground"
+#   13: 13    # "building"
+#   14: 14    # "percelain tiles"
+#   15: 15    # "percelain tiles"
+#   16: 16    # "percelain tiles"
+#   17: 17    # "percelain tiles"
+#   18: 18    # "percelain tiles"
+#   19: 19    # "percelain tiles"
+#   20: 20    # "percelain tiles"
+#   21: 21    # "percelain tiles"
+#   22: 22    # "percelain tiles"
+#   23: 23    # "percelain tiles"
+#   24: 24    # "percelain tiles"
+
+# learning_ignore: # Ignore classes
+#   0: False      # "unlabeled", and others ignored
+#   1: False     # "car"
+#   2: False     # "bicycle"
+#   3: False     # "motorcycle"
+#   4: False     # "truck"
+#   5: False     # "other-vehicle"
+#   6: False     # "person"
+#   7: False     # "bicyclist"
+#   8: False     # "motorcyclist"
+#   9: False     # "road"
+#   10: False    # "parking"
+#   11: False    # "sidewalk"
+#   12: False    # "other-ground"
+#   13: False    # "building"
+#   14: False    # "building"
+#   15: False    # "percelain tiles"
+#   16: False    # "percelain tiles"
+#   17: False    # "percelain tiles"
+#   18: False    # "percelain tiles"
+#   19: False    # "percelain tiles"
+#   20: False    # "percelain tiles"
+#   21: False    # "percelain tiles"
+#   22: False    # "percelain tiles"
+#   23: False    # "percelain tiles"
+#   24: False    # "percelain tiles"

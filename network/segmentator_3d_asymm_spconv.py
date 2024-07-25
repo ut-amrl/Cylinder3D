@@ -268,7 +268,6 @@ class Asymm_3d_spconv(nn.Module):
 
         sparse_shape = np.array(output_shape)
         # sparse_shape[0] = 11
-        print(sparse_shape)
         self.sparse_shape = sparse_shape
 
         self.downCntx = ResContextBlock(num_input_features, init_size, indice_key="pre")

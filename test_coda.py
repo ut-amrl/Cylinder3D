@@ -16,7 +16,7 @@ from dataloader.dataset_semantickitti import polar2cat_done
 from utils.load_save_util import load_checkpoint, load_checkpoint_1b1
 
 def main(args):
-    pytorch_device = torch.device('cuda:0')
+    pytorch_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     config_path = args.config_path
 
@@ -36,7 +36,8 @@ def main(args):
     num_class = model_config['num_class']
     ignore_label = dataset_config['ignore_label']
 
-    model_load_path = "./model_save_dir/model_save.pt"
+    # model_load_path = "./model_save_dir/model_save.pt"
+    model_load_path = "./semantickitti_coda_40epoch_25class/model_save.pt"
 
     SemKITTI_label_name = get_SemKITTI_label_name(dataset_config["label_mapping"])
     unique_label = np.asarray(sorted(list(SemKITTI_label_name.keys())))[1:] - 1
@@ -74,9 +75,16 @@ def main(args):
             test_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in test_grid]
             test_label_tensor = test_vox_label.type(torch.LongTensor).to(pytorch_device)
 
+            print("first", test_pt_fea_ten[0].shape)
+            print("second", test_grid_ten[0].shape)
+            print("third", test_batch_size)
+            print(test_pt_fea_ten[0].shape, test_grid_ten.shape, test_batch_size)
+
             predict_labels = my_model(test_pt_fea_ten, test_grid_ten, test_batch_size)
             predict_labels = torch.argmax(predict_labels, dim=1)
             predict_labels = predict_labels.cpu().detach().numpy()
+
+            print(test_grid[0].shape)
 
             # first get points
             xyz_pol = test_pt_fea[0][:, 3:6]
@@ -84,6 +92,8 @@ def main(args):
 
             # get predicted labels for each point
             predicted = np.array(predict_labels[0][test_grid[0][:, 0], test_grid[0][:, 1], test_grid[0][:, 2]]).reshape((-1, 1))
+
+            print(predicted.shape)
 
             # get labels
             actual = np.array(test_pt_labs)[0]
