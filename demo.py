@@ -1,19 +1,190 @@
 import os
-import time
 import argparse
 import sys
 import numpy as np
 import torch
-import torch.optim as optim
-from tqdm import tqdm
+from pathlib import Path
+from strictyaml import Bool, Float, Int, Map, Seq, Str, as_document, load
+import os
+import numpy as np
+from torch.utils import data
+import yaml
+import pickle
+import re
+import json
+from os.path import join
 
-from utils.metric_util import per_class_iu, fast_hist_crop
-from dataloader.pc_dataset import get_SemKITTI_label_name
 from builder import data_builder, model_builder, loss_builder
-from config.config import load_config_data
-from dataloader.dataset_semantickitti import polar2cat_done
 
-from utils.load_save_util import load_checkpoint, load_checkpoint_1b1
+
+def get_SemKITTI_label_name(label_mapping):
+    with open(label_mapping, 'r') as stream:
+        semkittiyaml = yaml.safe_load(stream)
+    SemKITTI_label_name = dict()
+    for i in sorted(list(semkittiyaml['learning_map'].keys()))[::-1]:
+        SemKITTI_label_name[semkittiyaml['learning_map'][i]] = semkittiyaml['labels'][i]
+
+    return SemKITTI_label_name
+
+
+model_params = Map(
+    {
+        "model_architecture": Str(),
+        "output_shape": Seq(Int()),
+        "fea_dim": Int(),
+        "out_fea_dim": Int(),
+        "num_class": Int(),
+        "num_input_features": Int(),
+        "use_norm": Bool(),
+        "init_size": Int(),
+    }
+)
+
+dataset_params = Map(
+    {
+        "dataset_type": Str(),
+        "pc_dataset_type": Str(),
+        "ignore_label": Int(),
+        "return_test": Bool(),
+        "fixed_volume_space": Bool(),
+        "label_mapping": Str(),
+        "max_volume_space": Seq(Float()),
+        "min_volume_space": Seq(Float()),
+    }
+)
+
+
+train_data_loader = Map(
+    {
+        "data_path": Str(),
+        "imageset": Str(),
+        "return_ref": Bool(),
+        "batch_size": Int(),
+        "shuffle": Bool(),
+        "num_workers": Int(),
+    }
+)
+
+val_data_loader = Map(
+    {
+        "data_path": Str(),
+        "imageset": Str(),
+        "return_ref": Bool(),
+        "batch_size": Int(),
+        "shuffle": Bool(),
+        "num_workers": Int(),
+    }
+)
+
+test_data_loader = Map(
+    {
+        "data_path": Str(),
+        "imageset": Str(),
+        "return_ref": Bool(),
+        "batch_size": Int(),
+        "shuffle": Bool(),
+        "num_workers": Int(),
+    }
+)
+
+train_params = Map(
+    {
+        "model_load_path": Str(),
+        "model_save_path": Str(),
+        "checkpoint_every_n_steps": Int(),
+        "max_num_epochs": Int(),
+        "eval_every_n_steps": Int(),
+        "learning_rate": Float(),
+        "weight_decay": Float(),
+        "mixed_fp16": Bool()
+    }
+)
+
+schema_v4 = Map(
+    {
+        "format_version": Int(),
+        "model_params": model_params,
+        "dataset_params": dataset_params,
+        "train_data_loader": train_data_loader,
+        "val_data_loader": val_data_loader,
+        "test_data_loader": test_data_loader,
+        "train_params": train_params,
+    }
+)
+
+
+SCHEMA_FORMAT_VERSION_TO_SCHEMA = {4: schema_v4}
+
+
+def load_config_data(path: str) -> dict:
+    yaml_string = Path(path).read_text()
+    cfg_without_schema = load(yaml_string, schema=None)
+    schema_version = int(cfg_without_schema["format_version"])
+    if schema_version not in SCHEMA_FORMAT_VERSION_TO_SCHEMA:
+        raise Exception(f"Unsupported schema format version: {schema_version}.")
+
+    strict_cfg = load(yaml_string, schema=SCHEMA_FORMAT_VERSION_TO_SCHEMA[schema_version])
+    cfg: dict = strict_cfg.data
+    return cfg
+
+
+def polar2cat_done(input_xyz_polar):
+    # print(input_xyz_polar.shape)
+    x = input_xyz_polar[:, 0] * np.cos(input_xyz_polar[:, 1])
+    y = input_xyz_polar[:, 0] * np.sin(input_xyz_polar[:, 1])
+    x = x.reshape((-1, 1))
+    y = y.reshape((-1, 1))
+    return np.concatenate((x, y, input_xyz_polar[:, 2].reshape((-1, 1))), axis=1)
+
+
+def load_checkpoint_1b1(model_load_path, model):
+    my_model_dict = model.state_dict()
+    pre_weight = torch.load(model_load_path)
+
+    part_load = {}
+    match_size = 0
+    nomatch_size = 0
+
+    pre_weight_list = [*pre_weight]
+    my_model_dict_list = [*my_model_dict]
+
+    for idx in range(len(pre_weight_list)):
+        key_ = pre_weight_list[idx]
+        key_2 = my_model_dict_list[idx]
+        value_ = pre_weight[key_]
+        if my_model_dict[key_2].shape == pre_weight[key_].shape:
+            # print("loading ", k)
+            match_size += 1
+            part_load[key_2] = value_
+        else:
+            print(key_)
+            print(key_2)
+            nomatch_size += 1
+
+    print("matched parameter sets: {}, and no matched: {}".format(match_size, nomatch_size))
+
+    my_model_dict.update(part_load)
+    model.load_state_dict(my_model_dict)
+
+    return model
+
+
+def fast_hist(pred, label, n):
+    k = (label >= 0) & (label < n)
+    bin_count = np.bincount(
+        n * label[k].astype(int) + pred[k], minlength=n ** 2)
+    return bin_count[:n ** 2].reshape(n, n)
+
+
+def per_class_iu(hist):
+    return np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
+
+
+def fast_hist_crop(output, target, unique_label):
+    hist = fast_hist(output.flatten(), target.flatten(), np.max(unique_label) + 2)
+    hist = hist[unique_label + 1, :]
+    hist = hist[:, unique_label + 1]
+    return hist
 
 
 def main(args):
